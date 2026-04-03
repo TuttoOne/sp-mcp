@@ -1,54 +1,78 @@
-# SharePoint MCP Server
+# SharePoint Bridge for Claude
 
-An MCP (Model Context Protocol) server that gives Claude direct access to SharePoint and Power Automate via Microsoft Graph API. Built to solve two problems:
+> Control SharePoint with natural language through Claude's Model Context Protocol (MCP).
 
-1. **CLI-style SharePoint management** — create lists, columns, lookups, items, and query data programmatically
-2. **Accurate documentation** — live Microsoft docs search so Claude uses current API info, not stale training data
+SharePoint Bridge is an open-source MCP server that connects Claude to your SharePoint environment via the Microsoft Graph API. Ask questions, create lists, update items, query data, and trigger Power Automate flows — all through conversation.
 
-## Tools
+## What It Does
 
-### SharePoint Lists
-| Tool | Description |
-|------|-------------|
-| `sp_list_lists` | List all lists on a site |
-| `sp_list_get` | Get list schema (columns, types, relationships) |
-| `sp_list_create` | Create a new list with optional columns |
-| `sp_column_add` | Add column (text, number, lookup, calculated, choice, person, etc.) |
-| `sp_items_query` | Query items with OData filter/sort/select |
-| `sp_item_create` | Create a list item |
-| `sp_item_update` | Update item fields |
-| `sp_item_delete` | Delete an item |
+Instead of clicking through SharePoint's UI, you talk to Claude:
 
-### Power Automate
-| Tool | Description |
-|------|-------------|
-| `pa_flows_list` | List flows in an environment |
-| `pa_flow_get` | Get full flow definition |
-| `pa_flow_runs` | Get run history with error details |
-| `pa_flow_trigger` | Manually trigger a flow |
+```
+You: "Show me all active projects with a deadline in the next two weeks"
+Claude: [queries SharePoint → synthesises results → presents actionable summary]
 
-### Documentation
-| Tool | Description |
-|------|-------------|
-| `ms_docs_search` | Search Microsoft Learn docs (Graph, PA, SharePoint) |
-| `ms_docs_fetch` | Fetch full content of a doc page |
-| `ms_docs_context` | Build comprehensive reference for a topic |
+You: "Create a new task for Sarah on the Henderson case, due Friday"
+Claude: [creates item in SharePoint → confirms with link]
 
-## Setup
+You: "What's the compliance status across all our open investigations?"
+Claude: [queries multiple lists → cross-references lookups → produces briefing]
+```
 
-### 1. Azure AD App Registration
+Claude reads your SharePoint schema, understands relationships between lists, and works across your entire site — not just one list at a time.
 
-1. Go to [portal.azure.com](https://portal.azure.com) > Azure Active Directory > App registrations > New
-2. Name: anything you like (e.g. `SharePoint MCP Bridge`)
-3. Account type: Single tenant
-4. Register, then on the app page:
-   - **API Permissions** > Add > Microsoft Graph > Application:
-     - `Sites.ReadWrite.All`
-     - `Lists.ReadWrite.All`
-     - `Files.ReadWrite.All`
-   - Click **Grant admin consent**
-   - **Certificates & secrets** > New client secret > copy value
-5. Note: Tenant ID, Client ID, Client Secret
+## Features
+
+- **Read & Write** — Query, create, update, and delete list items
+- **Schema-Aware** — Understands your column types, lookups, and relationships
+- **Multi-List Intelligence** — Cross-references data across related lists in a single conversation
+- **Audit & Restructure** — Claude can audit your entire SharePoint environment, diagnose structural problems, and rebuild it for optimal AI use
+- **Power Automate Integration** — List, inspect, and trigger flows
+- **Microsoft Learn Integration** — Built-in documentation search for accurate Graph API guidance
+- **Full Column Support** — Text, number, date, choice, lookup, calculated, boolean, currency, person
+- **Dual Transport** — HTTP mode for Claude.ai / remote connections, stdio mode for Claude Code / local use
+
+## Start Here: Audit Your SharePoint
+
+Once the bridge is connected, try this as your first conversation with Claude:
+
+```
+"Audit my SharePoint site. List every list, inspect every schema, and tell me:
+1. What's well-structured and what's messy
+2. Where I'm missing lookup relationships between related lists
+3. Which columns should be choice fields instead of free-text
+4. What data quality issues you can see
+5. How you'd restructure it to work better with AI"
+```
+
+Claude will use the bridge tools to scan your entire site and come back with a detailed assessment. This is the fastest way to understand the value of AI-powered SharePoint — and to see exactly what's holding your data back.
+
+If you want help acting on the recommendations, see [Custom Solutions](#custom-solutions) below.
+
+## Quick Start
+
+### Prerequisites
+
+- Node.js 18+
+- A Microsoft 365 tenant with SharePoint Online
+- An Azure App Registration with Graph API permissions
+- A Claude account (Pro, Team, or Enterprise) for Claude.ai, or Claude Code for local use
+
+### 1. Azure App Registration
+
+Create an app registration in [Azure Portal](https://portal.azure.com):
+
+1. Go to **Microsoft Entra ID** → **App registrations** → **New registration**
+2. Name: `SharePoint Bridge for Claude`
+3. Supported account types: **Single tenant** (or Multi-tenant if serving multiple orgs)
+4. Under **API permissions**, add **Application** permissions (not Delegated):
+   - `Sites.ReadWrite.All` — for list and item operations
+   - `Files.ReadWrite.All` — for document library access
+5. Optionally add **Delegated** permission:
+   - `User.Read` — for user profile resolution
+6. Click **Grant admin consent** for your tenant
+7. Under **Certificates & secrets**, create a new client secret and note it down
+8. Note your **Application (client) ID** and **Directory (tenant) ID** from the Overview page
 
 ### 2. Install & Configure
 
@@ -56,25 +80,49 @@ An MCP (Model Context Protocol) server that gives Claude direct access to ShareP
 git clone https://github.com/TuttoOne/sp-mcp.git
 cd sp-mcp
 npm install
-cp .env.example .env
-# Edit .env with your Azure AD credentials
 npm run build
+```
+
+Create a `.env` file:
+
+```env
+# Azure App Registration
+AZURE_TENANT_ID=your-tenant-id
+AZURE_CLIENT_ID=your-client-id
+AZURE_CLIENT_SECRET=your-client-secret
+
+# SharePoint
+SP_HOSTNAME=yourcompany.sharepoint.com
+SP_DEFAULT_SITE_PATH=/sites/YourSiteName
+
+# Server
+PORT=3500
+TRANSPORT=http
+NODE_ENV=production
 ```
 
 ### 3. Run
 
 ```bash
-# HTTP mode (for remote/Claude.ai connector)
-TRANSPORT=http PORT=3500 npm start
+# HTTP mode — for Claude.ai and remote connections
+TRANSPORT=http npm start
 
-# stdio mode (for local Claude Code)
+# stdio mode — for Claude Code and local CLI use
 TRANSPORT=stdio npm start
 ```
 
+In HTTP mode, the MCP server starts at `http://localhost:3500/mcp` (or your configured port).
+
 ### 4. Connect to Claude
 
-**Claude Code (local, stdio):**
-Add to your Claude Code MCP config:
+**Claude.ai:** Go to the conversation's MCP tools section and add your bridge URL (e.g., `https://sp-mcp.yourdomain.com/mcp`).
+
+**Claude Code:** Add to your MCP config:
+```bash
+claude mcp add --transport http sharepoint "https://sp-mcp.yourdomain.com/mcp"
+```
+
+**Claude Desktop:** Add to `claude_desktop_config.json`:
 ```json
 {
   "mcpServers": {
@@ -83,89 +131,201 @@ Add to your Claude Code MCP config:
       "args": ["dist/index.js"],
       "cwd": "/path/to/sp-mcp",
       "env": {
-        "TRANSPORT": "stdio"
+        "TRANSPORT": "stdio",
+        "AZURE_TENANT_ID": "your-tenant-id",
+        "AZURE_CLIENT_ID": "your-client-id",
+        "AZURE_CLIENT_SECRET": "your-client-secret",
+        "SP_HOSTNAME": "yourcompany.sharepoint.com",
+        "SP_DEFAULT_SITE_PATH": "/sites/YourSiteName"
       }
     }
   }
 }
 ```
 
-**Claude.ai (remote, HTTP):**
-Deploy to a server (see `deploy.sh`), then add as a custom MCP connector:
-- URL: `https://your-domain.com/mcp`
-- Name: `SharePoint`
+## Available Tools (15)
 
-### 5. Deploy (Optional — PM2 + Nginx)
+### SharePoint Lists (8 tools)
 
-```bash
-# Set your domain and install directory
-export SP_MCP_DOMAIN=sp-mcp.yourdomain.com
-export SP_MCP_DIR=/opt/sp-mcp
+| Tool | Description |
+|------|-------------|
+| `sp_list_lists` | List all lists and document libraries on a site |
+| `sp_list_get` | Get a list's full schema including column definitions, types, and relationships |
+| `sp_list_create` | Create a new list (add columns separately via `sp_column_add`) |
+| `sp_column_add` | Add columns: text, number, dateTime, choice, lookup, calculated, boolean, currency, personOrGroup |
+| `sp_items_query` | Query items with OData filtering, sorting, field selection, and pagination |
+| `sp_item_create` | Create new items with field values (supports lookup IDs) |
+| `sp_item_update` | Update existing item fields |
+| `sp_item_delete` | Delete items |
 
-# Run the deploy script
-./deploy.sh
-```
+### Power Automate (4 tools)
 
-## Usage Examples
+| Tool | Description |
+|------|-------------|
+| `pa_flows_list` | List all flows in an environment |
+| `pa_flow_get` | Get full flow definition including triggers and actions |
+| `pa_flow_runs` | View run history with status and error details |
+| `pa_flow_trigger` | Manually trigger a flow |
 
-Once connected, Claude can:
+### Microsoft Learn Documentation (3 tools)
 
-```
-"List all SharePoint lists on the ProjectDashboard site"
-→ Claude calls sp_list_lists
+| Tool | Description |
+|------|-------------|
+| `ms_docs_search` | Search Microsoft Learn docs (Graph API, Power Automate, SharePoint) |
+| `ms_docs_fetch` | Fetch full content of a documentation page |
+| `ms_docs_context` | Build comprehensive API reference for a topic (combines search + fetch) |
 
-"Create a lookup column on the Tasks list pointing to the Clients list"
-→ Claude calls sp_list_lists (to get Clients list ID), then sp_column_add with lookup type
+## Example Use Cases
 
-"Show me the last 10 failed Power Automate flow runs"
-→ Claude calls pa_flow_runs with status_filter="Failed"
+### Private Investigation Firms
+Case management, evidence chain of custody, subject tracking, compliance (GDPR/DPA), expense tracking — all queryable by Claude across related lists.
 
-"What's the correct Graph API format for creating a calculated column?"
-→ Claude calls ms_docs_search, gets current docs, gives accurate answer
-```
+### Legal Practices
+Matter management, document tracking, court deadlines, billing, conflict checks, client relationship management.
+
+### Property Management
+Tenancy records, compliance certificates, contractor management, maintenance scheduling, rent tracking.
+
+### Professional Services
+Project tracking, resource allocation, time logging, client deliverables, knowledge management.
 
 ## Architecture
 
 ```
-Claude.ai / Claude Code
-       │
-       ▼
-  MCP Protocol (HTTP/stdio)
-       │
-       ▼
-┌──────────────────────┐
-│  sharepoint-mcp-server│
-│                      │
-│  ┌─ SharePoint tools─┐│
-│  │ Lists, Columns,   ││
-│  │ Items, Lookups    ││
-│  └───────────────────┘│
-│  ┌─ PA tools─────────┐│
-│  │ Flows, Runs,      ││
-│  │ Triggers          ││
-│  └───────────────────┘│
-│  ┌─ Doc tools────────┐│
-│  │ Search, Fetch,    ││
-│  │ Context builder   ││
-│  └───────────────────┘│
-│         │             │
-│    MSAL Auth          │
-│         │             │
-└─────────┼─────────────┘
-          ▼
-   Microsoft Graph API
-   + Flow Management API
-   + Microsoft Learn
+┌──────────────┐     MCP Protocol      ┌─────────────────────┐     Graph API     ┌──────────────┐
+│  Claude.ai   │ ◄──────────────────► │  SharePoint Bridge  │ ◄───────────────► │  SharePoint  │
+│  Claude Code │  (HTTP or stdio)      │  (Node.js/TS MCP)   │    (REST/HTTP)    │  Online      │
+│  Claude      │                       │  Port 3500          │                   │              │
+│  Desktop     │                       │                     │                   │              │
+└──────────────┘                       └─────────────────────┘                   └──────────────┘
+                                              │         │
+                                              │         ▼
+                                              │  ┌─────────────────────┐
+                                              │  │   Power Automate    │
+                                              │  │   (Flow Management) │
+                                              │  └─────────────────────┘
+                                              ▼
+                                       ┌─────────────────────┐
+                                       │   Microsoft Learn   │
+                                       │   (Live doc search) │
+                                       └─────────────────────┘
 ```
 
-## Known Limitations
+The bridge authenticates with Microsoft Graph using the OAuth 2.0 client credentials flow (via MSAL). It translates Claude's MCP tool calls into Graph API requests and returns structured responses that Claude can reason about.
 
-- **Power Automate flow creation**: The Flow API supports listing, triggering, and inspecting flows, but creating/editing flow definitions programmatically is complex (involves raw JSON definition manipulation). For flow creation, use the Power Automate web UI.
-- **Lookup column values**: Graph API returns lookup fields as `{ColumnName}LookupId` (integer ID), not the display value. You need a second query to resolve display values.
-- **Person columns**: Similar to lookups — returned as IDs, need resolution.
-- **SharePoint column sorting**: The `$orderby` parameter on list items requires indexed columns and may need the `Prefer: HonorNonIndexedQueriesWarningMayFailRandomly` header.
-- **Hyperlink columns**: Graph API may return 500 errors when creating items with hyperlink column data (known MS bug).
+## Deployment
+
+### Build First
+
+The server is written in TypeScript. Always build before running in production:
+
+```bash
+npm run build
+```
+
+This compiles to `dist/index.js`.
+
+### PM2 (Recommended for Production)
+
+```bash
+npm install -g pm2
+pm2 start dist/index.js --name sp-mcp
+pm2 save
+pm2 startup
+```
+
+Or use the included ecosystem config:
+
+```bash
+pm2 start ecosystem.config.cjs
+pm2 save
+```
+
+### Nginx Reverse Proxy (for HTTPS)
+
+```nginx
+server {
+    listen 443 ssl;
+    server_name sp-mcp.yourdomain.com;
+
+    ssl_certificate /etc/letsencrypt/live/sp-mcp.yourdomain.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/sp-mcp.yourdomain.com/privkey.pem;
+
+    location / {
+        proxy_pass http://127.0.0.1:3500;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # MCP streaming support — critical for SSE transport
+        proxy_set_header Connection '';
+        proxy_buffering off;
+        proxy_cache off;
+        chunked_transfer_encoding on;
+
+        # Extended timeouts for Graph API calls
+        proxy_read_timeout 120s;
+        proxy_send_timeout 120s;
+    }
+}
+```
+
+Then obtain SSL:
+```bash
+certbot --nginx -d sp-mcp.yourdomain.com
+```
+
+## Important Notes
+
+### Lookup Columns
+Lookup columns are not indexed by default. OData filters on lookup fields (`{ColumnName}LookupId`) will return 400 errors on large lists. For small-to-medium lists (< 5,000 items), Claude can pull all items and filter client-side. For larger lists, index the lookup column in SharePoint's list settings.
+
+### List Creation & Columns
+When creating lists via `sp_list_create`, column types are limited to: text, number, dateTime, choice, boolean, currency. For lookup, calculated, and personOrGroup columns, create the list first, then add columns separately using `sp_column_add`.
+
+### Permissions
+The app registration requires **Application** permissions (not Delegated) for the client credentials flow. `Sites.ReadWrite.All` provides read and write access to all sites in the tenant. For tighter security, use `Sites.Selected` and grant per-site access via PowerShell.
+
+### Token Caching
+The bridge caches access tokens for their full lifetime (typically 1 hour). If you change permissions in Azure, restart the bridge to force a token refresh:
+```bash
+pm2 restart sp-mcp
+```
+
+### Known Limitations
+- Power Automate flow **creation/editing** is not supported — the Flow API supports listing, triggering, and inspecting, but not authoring flow definitions programmatically.
+- Lookup columns return as `{ColumnName}LookupId` (integer), not display values. Cross-reference with a second query to resolve.
+- `Address` is a reserved column name in SharePoint — use alternatives like `ClientAddress`.
+- Hyperlink columns may return 500 errors when creating items (known Microsoft Graph bug).
+
+## Custom Solutions
+
+This open-source bridge is the foundation. Tutto.one offers a full service ladder built on top of it:
+
+- **SharePoint AI Readiness Audit** — We connect the bridge and Claude audits your entire SharePoint environment. You get a detailed report on what's working, what's broken, and exactly what to fix. Free self-service, or guided with a walkthrough call.
+- **SharePoint Cleanup & Restructure** — Claude diagnosed the problems; now we fix them. We restructure your lists, retype your columns, create proper lookup relationships, and migrate your data. Your SharePoint goes from messy to AI-ready.
+- **Industry-specific data architectures** — Pre-built SharePoint schemas for PI firms, legal practices, property management, professional services, and recruitment. Proven structures with demo data and Claude prompt templates.
+- **Custom software for your organisation** — Not just industry templates, but bespoke systems designed for exactly how your organisation operates. Custom MCP tools, custom workflows, custom integrations — built around your specific processes, terminology, and requirements.
+- **Power Automate integration** — Automated workflows triggered by Claude: notifications, approvals, document generation, cross-system orchestration.
+- **Multi-system integration** — Connect Claude to SharePoint AND your other tools (Gmail, Calendar, Slack, Linear) through MCP. One conversation, multiple systems.
+- **Managed service** — We host the bridge, monitor it, keep it updated, and provide ongoing support. You focus on your business.
+
+Contact **[Tutto.one](https://tutto.one)** — the team that built this bridge.
+
+Email: daniel@tutto.one
+
+## Contributing
+
+Contributions welcome. Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+We especially welcome industry template contributions — if you've built a SharePoint architecture for a specific sector and want to share the schema, open an issue and let's collaborate.
 
 ## License
 
-MIT
+MIT — see [LICENSE](LICENSE) for details.
+
+---
+
+Built by [Tutto.one](https://tutto.one) | Powered by [Anthropic's MCP](https://modelcontextprotocol.io)
