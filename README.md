@@ -38,22 +38,23 @@ An MCP (Model Context Protocol) server that gives Claude direct access to ShareP
 
 ### 1. Azure AD App Registration
 
-1. Go to [portal.azure.com](https://portal.azure.com) → Azure Active Directory → App registrations → New
-2. Name: `Claude SharePoint Bridge`
+1. Go to [portal.azure.com](https://portal.azure.com) > Azure Active Directory > App registrations > New
+2. Name: anything you like (e.g. `SharePoint MCP Bridge`)
 3. Account type: Single tenant
 4. Register, then on the app page:
-   - **API Permissions** → Add → Microsoft Graph → Application:
+   - **API Permissions** > Add > Microsoft Graph > Application:
      - `Sites.ReadWrite.All`
      - `Lists.ReadWrite.All`
      - `Files.ReadWrite.All`
    - Click **Grant admin consent**
-   - **Certificates & secrets** → New client secret → copy value
+   - **Certificates & secrets** > New client secret > copy value
 5. Note: Tenant ID, Client ID, Client Secret
 
 ### 2. Install & Configure
 
 ```bash
-cd sharepoint-mcp-server
+git clone https://github.com/TuttoOne/sp-mcp.git
+cd sp-mcp
 npm install
 cp .env.example .env
 # Edit .env with your Azure AD credentials
@@ -70,27 +71,40 @@ TRANSPORT=http PORT=3500 npm start
 TRANSPORT=stdio npm start
 ```
 
-### 4. Deploy on Hetzner (PM2)
+### 4. Connect to Claude
 
-```bash
-# Copy to server
-scp -r sharepoint-mcp-server hetzner:~/
-
-# On server
-cd ~/sharepoint-mcp-server
-npm install && npm run build
-pm2 start dist/index.js --name sp-mcp -- --env .env
-pm2 save
-
-# Nginx config for sp-mcp.tutto.one
-# proxy_pass http://localhost:3500;
+**Claude Code (local, stdio):**
+Add to your Claude Code MCP config:
+```json
+{
+  "mcpServers": {
+    "sharepoint": {
+      "command": "node",
+      "args": ["dist/index.js"],
+      "cwd": "/path/to/sp-mcp",
+      "env": {
+        "TRANSPORT": "stdio"
+      }
+    }
+  }
+}
 ```
 
-### 5. Connect to Claude.ai
-
-Add as a custom MCP connector:
-- URL: `https://sp-mcp.tutto.one/mcp`
+**Claude.ai (remote, HTTP):**
+Deploy to a server (see `deploy.sh`), then add as a custom MCP connector:
+- URL: `https://your-domain.com/mcp`
 - Name: `SharePoint`
+
+### 5. Deploy (Optional — PM2 + Nginx)
+
+```bash
+# Set your domain and install directory
+export SP_MCP_DOMAIN=sp-mcp.yourdomain.com
+export SP_MCP_DIR=/opt/sp-mcp
+
+# Run the deploy script
+./deploy.sh
+```
 
 ## Usage Examples
 
@@ -151,3 +165,7 @@ Claude.ai / Claude Code
 - **Person columns**: Similar to lookups — returned as IDs, need resolution.
 - **SharePoint column sorting**: The `$orderby` parameter on list items requires indexed columns and may need the `Prefer: HonorNonIndexedQueriesWarningMayFailRandomly` header.
 - **Hyperlink columns**: Graph API may return 500 errors when creating items with hyperlink column data (known MS bug).
+
+## License
+
+MIT

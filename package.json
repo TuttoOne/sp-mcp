@@ -2,6 +2,18 @@
   "name": "sharepoint-mcp-server",
   "version": "1.0.0",
   "description": "MCP server for SharePoint & Power Automate management via Microsoft Graph API",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/TuttoOne/sp-mcp.git"
+  },
+  "keywords": [
+    "mcp",
+    "sharepoint",
+    "power-automate",
+    "microsoft-graph",
+    "claude"
+  ],
   "type": "module",
   "main": "dist/index.js",
   "scripts": {

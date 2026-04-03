@@ -2,3 +2,7 @@ node_modules/
 dist/
 .env
 *.tar.gz
+*.png
+*.jpg
+*.jpeg
+*.log
